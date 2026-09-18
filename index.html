@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="zh-TW">
 
@@ -784,4 +785,792 @@
 
 </body>
 
+=======
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>員工打卡系統</title>
+
+  <style>
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 450px;
+      text-align: center;
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    input {
+      padding: 10px;
+      margin: 10px 0;
+      width: 80%;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    .buttons {
+      margin-top: 15px;
+    }
+
+    .buttons button {
+      margin: 10px 5px;
+      padding: 10px 20px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .buttons button:hover {
+      background-color: #0056b3;
+    }
+
+    .buttons button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    #locationStatus {
+      margin: 15px 0;
+      padding: 10px;
+      border-radius: 5px;
+      background-color: #f0f0f0;
+      line-height: 1.6;
+    }
+
+    #record {
+      margin-top: 15px;
+      padding: 10px;
+      text-align: left;
+      background: #f8f8f8;
+      border-radius: 5px;
+      line-height: 1.7;
+    }
+
+    .success {
+      color: green;
+    }
+
+    .error {
+      color: red;
+    }
+
+    .warning {
+      color: #d97706;
+    }
+
+    #refreshLocation {
+      background-color: #28a745;
+    }
+
+    #refreshLocation:hover {
+      background-color: #218838;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>員工打卡系統</h1>
+
+    <!-- 員工姓名 -->
+    <input
+      type="text"
+      id="employeeName"
+      placeholder="請輸入姓名"
+    >
+
+    <!-- 日期時間 -->
+    <p id="date"></p>
+    <p id="time"></p>
+
+    <!-- GPS 狀態 -->
+    <div id="locationStatus">
+      正在取得定位...
+    </div>
+
+    <!-- 按鈕 -->
+    <div class="buttons">
+
+      <button id="refreshLocation">
+        重新定位
+      </button>
+
+      <br>
+
+      <button id="clockIn" disabled>
+        上班打卡
+      </button>
+
+      <button id="clockOut" disabled>
+        下班打卡
+      </button>
+
+    </div>
+
+    <h2>今日紀錄</h2>
+
+    <div id="record">
+      尚無打卡紀錄
+    </div>
+
+  </div>
+
+
+  <script>
+
+    // =====================================================
+    // 公司位置設定
+    // =====================================================
+
+    const COMPANY_LATITUDE = 22.72199401851293;
+    const COMPANY_LONGITUDE = 120.30030467800917;
+
+    // 公司允許打卡範圍：100 公尺
+    const ALLOWED_RADIUS = 100;
+
+
+    // =====================================================
+    // 目前 GPS 位置
+    // =====================================================
+
+    let currentLocation = null;
+
+
+    // =====================================================
+    // DOM 元素
+    // =====================================================
+
+    const clockInButton =
+      document.getElementById("clockIn");
+
+    const clockOutButton =
+      document.getElementById("clockOut");
+
+    const refreshLocationButton =
+      document.getElementById("refreshLocation");
+
+    const locationStatus =
+      document.getElementById("locationStatus");
+
+    const recordElement =
+      document.getElementById("record");
+
+
+    // =====================================================
+    // 顯示日期與時間
+    // =====================================================
+
+    function updateDateTime() {
+
+      const now = new Date();
+
+      document.getElementById("date").textContent =
+        "日期：" + now.toLocaleDateString("zh-TW");
+
+      document.getElementById("time").textContent =
+        "時間：" + now.toLocaleTimeString("zh-TW");
+    }
+
+
+    updateDateTime();
+
+    setInterval(updateDateTime, 1000);
+
+
+    // =====================================================
+    // 計算 GPS 距離
+    // Haversine Formula
+    // =====================================================
+
+    function calculateDistance(
+      lat1,
+      lon1,
+      lat2,
+      lon2
+    ) {
+
+      const earthRadius = 6371000;
+
+      const lat1Rad =
+        lat1 * Math.PI / 180;
+
+      const lat2Rad =
+        lat2 * Math.PI / 180;
+
+      const deltaLat =
+        (lat2 - lat1) * Math.PI / 180;
+
+      const deltaLon =
+        (lon2 - lon1) * Math.PI / 180;
+
+      const a =
+        Math.sin(deltaLat / 2) *
+        Math.sin(deltaLat / 2) +
+
+        Math.cos(lat1Rad) *
+        Math.cos(lat2Rad) *
+
+        Math.sin(deltaLon / 2) *
+        Math.sin(deltaLon / 2);
+
+      const c =
+        2 * Math.atan2(
+          Math.sqrt(a),
+          Math.sqrt(1 - a)
+        );
+
+      return earthRadius * c;
+    }
+
+
+    // =====================================================
+    // 取得 GPS 定位
+    // =====================================================
+
+    function getLocation() {
+
+      // 先停用打卡按鈕
+      clockInButton.disabled = true;
+      clockOutButton.disabled = true;
+
+      // 清除目前位置
+      currentLocation = null;
+
+
+      // 檢查瀏覽器是否支援 GPS
+      if (!navigator.geolocation) {
+
+        locationStatus.textContent =
+          "✕ 此瀏覽器不支援 GPS 定位功能";
+
+        locationStatus.className = "error";
+
+        return;
+      }
+
+
+      // 顯示定位中
+      locationStatus.innerHTML =
+        "正在取得目前位置...";
+
+      locationStatus.className = "";
+
+      refreshLocationButton.disabled = true;
+
+
+      // ===================================================
+      // 取得目前位置
+      // ===================================================
+
+      navigator.geolocation.getCurrentPosition(
+
+        function(position) {
+
+          const latitude =
+            position.coords.latitude;
+
+          const longitude =
+            position.coords.longitude;
+
+          const accuracy =
+            position.coords.accuracy;
+
+
+          // 儲存目前位置
+          currentLocation = {
+
+            latitude: latitude,
+
+            longitude: longitude,
+
+            accuracy: accuracy
+
+          };
+
+
+          // =================================================
+          // 計算與公司的距離
+          // =================================================
+
+          const distance =
+            calculateDistance(
+
+              latitude,
+              longitude,
+
+              COMPANY_LATITUDE,
+              COMPANY_LONGITUDE
+
+            );
+
+
+          // =================================================
+          // 判斷是否在公司範圍
+          // =================================================
+
+          if (distance <= ALLOWED_RADIUS) {
+
+            locationStatus.innerHTML = `
+
+              <span class="success">
+                ✓ 定位成功，可打卡
+              </span>
+
+              <br>
+
+              距離公司：約
+              ${Math.round(distance)}
+              公尺
+
+              <br>
+
+              定位誤差：約
+              ${Math.round(accuracy)}
+              公尺
+
+              <br>
+
+              緯度：
+              ${latitude.toFixed(6)}
+
+              <br>
+
+              經度：
+              ${longitude.toFixed(6)}
+
+            `;
+
+            locationStatus.className = "success";
+
+
+            // 開啟打卡按鈕
+            clockInButton.disabled = false;
+
+            clockOutButton.disabled = false;
+
+
+          } else {
+
+            locationStatus.innerHTML = `
+
+              <span class="error">
+                ✕ 不在公司打卡範圍內
+              </span>
+
+              <br>
+
+              距離公司：約
+              ${Math.round(distance)}
+              公尺
+
+              <br>
+
+              允許範圍：
+              ${ALLOWED_RADIUS}
+              公尺
+
+              <br>
+
+              定位誤差：約
+              ${Math.round(accuracy)}
+              公尺
+
+            `;
+
+            locationStatus.className = "error";
+
+
+            // 保持打卡按鈕停用
+            clockInButton.disabled = true;
+
+            clockOutButton.disabled = true;
+
+          }
+
+
+          refreshLocationButton.disabled = false;
+
+        },
+
+
+        // =================================================
+        // GPS 錯誤
+        // =================================================
+
+        function(error) {
+
+          currentLocation = null;
+
+          clockInButton.disabled = true;
+
+          clockOutButton.disabled = true;
+
+          refreshLocationButton.disabled = false;
+
+
+          let message = "";
+
+
+          switch (error.code) {
+
+            case error.PERMISSION_DENIED:
+
+              message =
+                "使用者拒絕提供定位權限";
+
+              break;
+
+
+            case error.POSITION_UNAVAILABLE:
+
+              message =
+                "目前無法取得位置";
+
+              break;
+
+
+            case error.TIMEOUT:
+
+              message =
+                "取得定位逾時";
+
+              break;
+
+
+            default:
+
+              message =
+                "定位發生未知錯誤";
+
+          }
+
+
+          locationStatus.textContent =
+            "✕ " + message;
+
+          locationStatus.className = "error";
+
+        },
+
+
+        // =================================================
+        // GPS 設定
+        // =================================================
+
+        {
+
+          enableHighAccuracy: true,
+
+          timeout: 10000,
+
+          maximumAge: 0
+
+        }
+
+      );
+
+    }
+
+
+    // =====================================================
+    // 打卡
+    // =====================================================
+
+    function clock(type) {
+
+      // ===================================================
+      // 取得姓名
+      // ===================================================
+
+      const employeeName =
+        document
+          .getElementById("employeeName")
+          .value
+          .trim();
+
+
+      // ===================================================
+      // 檢查姓名
+      // ===================================================
+
+      if (!employeeName) {
+
+        alert("請先輸入姓名");
+
+        return;
+
+      }
+
+
+      // ===================================================
+      // 檢查 GPS
+      // ===================================================
+
+      if (!currentLocation) {
+
+        alert(
+          "尚未取得定位，請先取得 GPS 位置。"
+        );
+
+        getLocation();
+
+        return;
+
+      }
+
+
+      // ===================================================
+      // 再次計算距離
+      // ===================================================
+
+      const distance =
+        calculateDistance(
+
+          currentLocation.latitude,
+
+          currentLocation.longitude,
+
+          COMPANY_LATITUDE,
+
+          COMPANY_LONGITUDE
+
+        );
+
+
+      // ===================================================
+      // 再次確認是否在公司範圍
+      // ===================================================
+
+      if (distance > ALLOWED_RADIUS) {
+
+        alert(
+
+          `目前距離公司約 ${Math.round(distance)} 公尺，` +
+
+          `超過允許的 ${ALLOWED_RADIUS} 公尺範圍，` +
+
+          `無法打卡。`
+
+        );
+
+
+        // 重新取得定位
+        getLocation();
+
+        return;
+
+      }
+
+
+      // ===================================================
+      // 建立打卡資料
+      // ===================================================
+
+      const now = new Date();
+
+
+      const record = {
+
+        name: employeeName,
+
+        type: type,
+
+        date:
+          now.toLocaleDateString("zh-TW"),
+
+        time:
+          now.toLocaleTimeString("zh-TW"),
+
+        latitude:
+          currentLocation.latitude,
+
+        longitude:
+          currentLocation.longitude,
+
+        accuracy:
+          currentLocation.accuracy,
+
+        distance:
+          distance
+
+      };
+
+
+      // ===================================================
+      // 顯示打卡紀錄
+      // ===================================================
+
+      recordElement.innerHTML = `
+
+        <strong>${record.type}</strong>
+
+        <br>
+
+        員工：
+        ${record.name}
+
+        <br>
+
+        日期：
+        ${record.date}
+
+        <br>
+
+        時間：
+        ${record.time}
+
+        <br>
+
+        緯度：
+        ${record.latitude.toFixed(6)}
+
+        <br>
+
+        經度：
+        ${record.longitude.toFixed(6)}
+
+        <br>
+
+        距離公司：約
+        ${Math.round(record.distance)}
+        公尺
+
+        <br>
+
+        定位誤差：約
+        ${Math.round(record.accuracy)}
+        公尺
+
+      `;
+
+
+      // ===================================================
+      // Console 顯示資料
+      // ===================================================
+
+      console.log(
+        "打卡資料：",
+        record
+      );
+
+      // 傳送到 Google Apps Script
+      fetch("https://script.google.com/macros/s/AKfycbyui24Cv_HES4kSInG5SMhpJCwp0O__rdWA2xg7wEW2H6SyddvQAY1fBvC0sVYWUEXf/exec", {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(record)
+      })
+      .then(response => response.text())
+      .then(result => {
+      console.log("Google Apps Script 回應：", result);
+      })
+      .catch(error => {
+      console.error("傳送打卡資料失敗：", error);
+      });
+
+
+
+      // ===================================================
+      // 顯示成功訊息
+      // ===================================================
+
+      alert(
+
+        `${type}成功！\n\n` +
+
+        `員工：${record.name}\n` +
+
+        `時間：${record.time}\n` +
+
+        `距離公司：約 ${Math.round(record.distance)} 公尺\n` +
+
+        `定位：${record.latitude.toFixed(6)}, ` +
+
+        `${record.longitude.toFixed(6)}`
+
+      );
+
+    }
+
+
+    // =====================================================
+    // 上班打卡按鈕
+    // =====================================================
+
+    clockInButton.addEventListener(
+      "click",
+      function() {
+
+        clock("上班打卡");
+
+      }
+    );
+
+
+    // =====================================================
+    // 下班打卡按鈕
+    // =====================================================
+
+    clockOutButton.addEventListener(
+      "click",
+      function() {
+
+        clock("下班打卡");
+
+      }
+    );
+
+
+    // =====================================================
+    // 重新定位按鈕
+    // =====================================================
+
+    refreshLocationButton.addEventListener(
+      "click",
+      function() {
+
+        getLocation();
+
+      }
+    );
+
+
+    // =====================================================
+    // 網頁載入後自動取得 GPS
+    // =====================================================
+
+    getLocation();
+
+  </script>
+
+</body>
+
+>>>>>>> c83bde930fbe2df9d83a2d8190d32f88ed84fb1f
 </html>
