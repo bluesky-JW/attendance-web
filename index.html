@@ -691,6 +691,23 @@
         record
       );
 
+      // 傳送到 Google Apps Script
+      fetch("https://script.google.com/macros/s/AKfycbyui24Cv_HES4kSInG5SMhpJCwp0O__rdWA2xg7wEW2H6SyddvQAY1fBvC0sVYWUEXf/exec", {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(record)
+      })
+      .then(response => response.text())
+      .then(result => {
+      console.log("Google Apps Script 回應：", result);
+      })
+      .catch(error => {
+      console.error("傳送打卡資料失敗：", error);
+      });
+
+
 
       // ===================================================
       // 顯示成功訊息
